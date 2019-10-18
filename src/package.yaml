@@ -1,0 +1,14 @@
+name: instant-compiler
+version: '1.0'
+author: Mateusz Biegański
+
+executables:
+  src:
+    main: src/insc_jvm.hs
+    dependencies:
+       - instant-compiler
+
+dependencies:
+  - base >= 4.7 && < 5
+  - text
+

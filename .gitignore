@@ -1,8 +1,3 @@
-AbsInstant.hs
-DocInstant.txt
-ErrM.hs
-LexInstant.x
-ParInstant.y
-PrintInstant.hs
-SkelInstant.hs
-TestInstant.hs
+*.lock
+*#*#*
+*.stack-work*

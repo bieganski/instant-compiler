@@ -1,2 +1,4 @@
 all:
-	make -C src
+	stack init
+	stack build
+	# make -C src
