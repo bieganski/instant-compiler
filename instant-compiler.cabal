@@ -1,0 +1,34 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 7ec34e480b1231ef1b5ee7987462998593d239121f246e4b01091e9e95a03f0d
+
+name:           instant-compiler
+version:        1.0
+author:         Mateusz Biegański
+maintainer:     Mateusz Biegański
+build-type:     Simple
+
+executable app-exe
+  main-is: insc_jvm.hs
+  other-modules:
+      AbsInstant
+      ErrM
+      LexInstant
+      LexInstant
+      ParInstant
+      ParInstant
+      PrintInstant
+      SkelInstant
+      TestInstant
+      Paths_instant_compiler
+  hs-source-dirs:
+      src
+  build-depends:
+      array
+    , base >=4.7 && <5
+    , text
+  default-language: Haskell2010
