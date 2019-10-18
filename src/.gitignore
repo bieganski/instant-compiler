@@ -1,0 +1,7 @@
+*.o
+*.hi
+TestInstant
+LexInstant.hs
+ParInstant.hs
+
+
