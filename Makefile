@@ -1,0 +1,2 @@
+all:
+	bnfc Instant.cf
