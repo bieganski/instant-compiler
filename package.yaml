@@ -3,8 +3,9 @@ version: '1.0'
 author: Mateusz Biegański
 
 executables:
-  src:
-    main: src/insc_jvm.hs
+  app-exe:
+    main:          insc_jvm.hs
+    source-dirs:   src
     dependencies:
        - instant-compiler
 
