@@ -1,2 +1,2 @@
 all:
-	bnfc Instant.cf
+	make src
