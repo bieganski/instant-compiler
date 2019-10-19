@@ -78,7 +78,6 @@ buildMain :: Program -> T.Text
 buildMain prog = buildText [buildMainBegin,
                                    limitStack 1000,
                                    limitLocals 1000,
-                                   T.pack print_begin,
                                    buildMainContentIR prog val0,
                                    buildMainEnd]
 
@@ -91,9 +90,25 @@ buildIR prog = buildText [buildProlog "PrzykladowaKlasa",
 emptyProgram :: Program
 emptyProgram = Prog []
 
+computeBinaryOpIR :: Exp -> Exp -> T.Text -> SState T.Text
+computeBinaryOpIR e1 e2 opBytecode = do
+  t1 <- computeExpIR e1
+  t2 <- computeExpIR e2
+  return $ buildText [t1, t2, opBytecode]
+  
 computeExpIR :: Exp -> SState T.Text
-computeExpIR e = return $ T.pack "lol"
-
+computeExpIR e = do
+  case e of
+    ExpAdd e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "iadd")
+    ExpSub e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "isub")
+    ExpMul e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "imul")
+    ExpDiv e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "idiv")
+    ExpLit n -> return $ T.pack $ "sipush" ++ (show n)
+    ExpVar (Ident x) -> do
+      m <- gets snd
+      case Map.lookup x m of
+        Nothing -> error "Usage of not defined variable"
+        Just num -> return $ T.pack $ "iload" ++ (show num)
 
 computeStmtIR :: Stmt -> SState T.Text
 computeStmtIR stmt = do
