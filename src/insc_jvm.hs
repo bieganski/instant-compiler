@@ -1,10 +1,29 @@
 import AbsInstant
+import ParInstant
+import SkelInstant
+import PrintInstant
+import SkelInstant
+import LexInstant
+import ErrM
 
+import System.IO (hGetContents)
+import System.Environment (getArgs)
 import qualified Data.Text as T
 import Control.Monad.State
 import Control.Monad.Identity
 import Control.Monad(forM)
 import qualified Data.Map as Map
+
+import Debug.Trace
+
+type ParseFun a = [Token] -> Err a
+
+myLLexer = myLexer
+
+type Verbosity = Int
+
+
+
 
 default_superclass = "java/lang/Object"
 main_signature = ".method public static main([Ljava/lang/String;)V"
@@ -74,19 +93,6 @@ modifyAssignVariable x (num, m) = case Map.lookup x m of
   Just _ -> (num, m)
 
 
-buildMain :: Program -> T.Text
-buildMain prog = buildText [buildMainBegin,
-                                   limitStack 1000,
-                                   limitLocals 1000,
-                                   buildMainContentIR prog val0,
-                                   buildMainEnd]
-
-buildIR :: Program -> T.Text
-buildIR prog = buildText [buildProlog "PrzykladowaKlasa",
-                                  buildConstructor,
-                                  buildMain prog]
-
-
 emptyProgram :: Program
 emptyProgram = Prog []
 
@@ -103,12 +109,12 @@ computeExpIR e = do
     ExpSub e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "isub")
     ExpMul e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "imul")
     ExpDiv e1 e2 -> computeBinaryOpIR e1 e2 (T.pack "idiv")
-    ExpLit n -> return $ T.pack $ "sipush" ++ (show n)
+    ExpLit n -> return $ T.pack $ "sipush " ++ (show n)
     ExpVar (Ident x) -> do
       m <- gets snd
       case Map.lookup x m of
         Nothing -> error "Usage of not defined variable"
-        Just num -> return $ T.pack $ "iload" ++ (show num)
+        Just num -> return $ T.pack $ "iload " ++ (show num)
 
 computeStmtIR :: Stmt -> SState T.Text
 computeStmtIR stmt = do
@@ -131,7 +137,37 @@ computeProgramIR (Prog stmts) = do
 
 buildMainContentIR :: Program -> Val -> T.Text
 buildMainContentIR p v = evalState (computeProgramIR p) v
-  
+
+buildMain :: Program -> T.Text
+buildMain prog = buildText [buildMainBegin,
+                                   limitStack 1000,
+                                   limitLocals 1000,
+                                   buildMainContentIR prog val0,
+                                   buildMainEnd]
+
+buildIR :: Program -> T.Text
+buildIR prog = buildText [buildProlog "PrzykladowaKlasa",
+                                  buildConstructor,
+                                  buildMain prog]
+
+
+
+runFile :: Verbosity -> FilePath -> IO ()
+runFile v f = readFile f >>= run v
+
+run :: Verbosity -> String -> IO ()
+run v s = do
+  let ts = pProgram $ myLLexer s
+  case ts of
+           Bad s    -> putStrLn "\nParse failed...\n"
+           Ok  tree -> do
+             let ir = T.unpack $ buildIR tree
+             putStrLn ir
+
 main :: IO ()
 main = do
-  putStrLn $ T.unpack $ buildIR emptyProgram
+  args <- getArgs
+  case args of
+    [progPath] -> do
+      runFile 0 progPath
+    _ -> error "args error!"
