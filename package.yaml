@@ -3,11 +3,12 @@ version: '1.0'
 author: Mateusz Biegański
 
 executables:
-  app-exe:
+  jvm:
     main:          insc_jvm.hs
     source-dirs:   src
-#    dependencies:
-#       - instant-compiler
+  llvm:
+    main:          insc_llvm.hs
+    source-dirs:   src
 
 dependencies:
   - base >= 4.7 && < 5

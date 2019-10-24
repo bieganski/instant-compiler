@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d946d4da0f0ecf13fd78b7806841b91caa485717bcfd9663a4ed15aa29e9c9bd
+-- hash: 094e2936e55779c004599d2cbc5ed23f9b4f78f19fffee42e677f24f680f1c9b
 
 name:           instant-compiler
 version:        1.0
@@ -12,8 +12,31 @@ author:         Mateusz Biegański
 maintainer:     Mateusz Biegański
 build-type:     Simple
 
-executable app-exe
+executable jvm
   main-is: insc_jvm.hs
+  other-modules:
+      AbsInstant
+      ErrM
+      LexInstant
+      LexInstant
+      ParInstant
+      ParInstant
+      PrintInstant
+      SkelInstant
+      TestInstant
+      Paths_instant_compiler
+  hs-source-dirs:
+      src
+  build-depends:
+      array
+    , base >=4.7 && <5
+    , containers
+    , mtl
+    , text
+  default-language: Haskell2010
+
+executable llvm
+  main-is: insc_llvm.hs
   other-modules:
       AbsInstant
       ErrM
