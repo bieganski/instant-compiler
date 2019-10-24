@@ -9,6 +9,7 @@ import ErrM
 import System.IO (hGetContents)
 import System.Environment (getArgs)
 import qualified Data.Text as T
+import Text.Printf(printf)
 import Control.Monad.State
 import Control.Monad.Identity
 import Control.Monad(forM)
@@ -16,36 +17,30 @@ import qualified Data.Map as Map
 
 import Debug.Trace
 
+-- bnfc stuff
 type ParseFun a = [Token] -> Err a
-
 myLLexer = myLexer
-
 type Verbosity = Int
 
 -- TODO source filename
-prolog :: String -> String
 prolog = ["target datalayout = \"e-m:e-i64:64-f80:128-n8:16:32:64-S128",
           "target triple = \"x86_64-pc-linux-gnu",
-          "@.str = private unnamed_addr constant [4 x i8] c\"%d\0A\00\", align 1"
-         ]
+          "@.str = private unnamed_addr constant [4 x i8] c\"%d\0A\00\", align 1"]
+         
 main_begin = ["define i32 @main() #0 {"]
 main_end = ["}"]
 
-epilog = ["attributes #0 = { noinline nounwind optnone uwtable \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" "no-infs-fp-math\"=\"false\" \"no-jump-tables\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+fxsr,+mmx,+sse,+sse2,+x87\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }",
+printf_call = "call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %d)"
+
+epilog = ["attributes #0 = { noinline nounwind optnone uwtable \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-jump-tables\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+fxsr,+mmx,+sse,+sse2,+x87\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }",
           "!llvm.module.flags = !{!0}",
           "!llvm.ident = !{!1}",
           "!0 = !{i32 1, !\"wchar_size\", i32 4}",
-          "!1 = !{!\"clang version 6.0.0-1ubuntu2 (tags/RELEASE_600/final)\"}"
-]
+          "!1 = !{!\"clang version 6.0.0-1ubuntu2 (tags/RELEASE_600/final)\"}"]
 
 
-buildPrintable :: T.Text -> T.Text
-buildPrintable t = buildText [T.pack print_begin,
-                              t,
-                              T.pack print_end]
-
-buildConstructor :: T.Text
-buildConstructor = buildLines default_constructor
+buildPrintable :: Id -> T.Text
+buildPrintable id = T.pack $ printf printf_call id 
 
 buildMainBegin :: T.Text
 buildMainBegin = buildLines main_begin
@@ -60,89 +55,56 @@ buildLines :: [String] -> T.Text
 buildLines xs = T.intercalate (T.pack "\n") (map T.pack xs) 
 
 
+-- num free variable to be used (numering from 1)
+-- and map from variable name to its number and value
+type Id = Integer
+type Val = Integer
+type SState = Map.Map String (Id, Val)
+type SStateM = State (Id, SState)
 
--- num variable to be used (numering from 1,
--- because main is static and takes one argument)
--- and map from variable name to its number
-type Val = (Integer, Map.Map String Integer)
-type SState a = State Val a
+s0 :: (Id, SState)
+s0 = (1, Map.empty)
 
-val0 :: Val
-val0 = (1, Map.empty)
+-- it must exist
+getVariableNum :: String -> SState -> Integer 
+getVariableNum x m = fst (m Map.! x)
 
--- it must exist in val
-getVariableNum :: String -> Val -> Integer 
-getVariableNum x (_, m) = m Map.! x
 
-modifyAssignVariable :: String -> Val -> Val
+-- TODO o to
+modifyAssignVariable :: String -> (Id, SState) -> SState
 modifyAssignVariable x (num, m) = case Map.lookup x m of
-  Nothing -> (num + 1, Map.insert x num m)
+  Nothing -> Map.insert m x (num + 1, Map.insert x (num, 0) m)
   Just _ -> (num, m)
 
 
-computeBinaryOpIR :: Exp -> Exp -> Map.Map Exp Integer -> T.Text -> SState T.Text
-computeBinaryOpIR e1 e2 m opBytecode = do
-  t1 <- computeExpIR e1 m
-  t2 <- computeExpIR e2 m
-  if (m Map.! e1) > (m Map.! e2)
-    then return $ buildText [t1, t2, opBytecode]
-    else return $ buildText [t2, t1, opBytecode]
-
-    
-computeExpIR :: Exp -> Map.Map Exp Integer -> SState T.Text
-computeExpIR e m = do
-  case e of
-    ExpAdd e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "iadd")
-    ExpSub e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "isub")
-    ExpMul e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "imul")
-    ExpDiv e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "idiv")
-    ExpLit n -> return $ T.pack $ (push n) ++ (show n) where
-      push n
-        | n <= 255 = "bipush "
-        | n <= 65535 = "sipush "
-        | otherwise = "ldc "
-    ExpVar (Ident x) -> do
-      m <- gets snd
-      case Map.lookup x m of
-        Nothing -> error "Usage of not defined variable"
-        Just num -> return $ T.pack $ "iload " ++ (show num)
-
-computeStmtIR :: Stmt -> SState T.Text
+computeStmtIR :: Stmt -> SStateM T.Text
 computeStmtIR stmt = do
   case stmt of
     SAss (Ident x) e -> do
-      t1 <- computeExpIR e
       return $ buildText [] 
     SExp e -> do
-      let m = computeStackMap e
-      t1 <- computeExpIR e m
-      return $ buildPrintable t1
+      return $ buildPrintable 2137
 
 
-computeProgramIR :: Program -> SState T.Text
+computeProgramIR :: Program -> SStateM T.Text
 computeProgramIR (Prog stmts) = do
   ts <- forM stmts computeStmtIR
   return $ buildText ts
 
--- returns content and number of used variables (for limitLocals)
-buildMainContentIR :: Program -> Val -> (T.Text, Integer)
-buildMainContentIR p v = (text, fromIntegral $ Map.size $ snd state) where
-  (text, state) = runState (computeProgramIR p) v
+
+buildMainContentIR :: Program -> SState -> T.Text
+buildMainContentIR p v = evalState (computeProgramIR p) v
 
 -- limits for locals and stack increased by 1 because of 'getstatic' usage
 -- and string argument in main function
-buildMain :: Program -> T.Text
-buildMain prog = buildText [buildMainBegin,
-                                   limitStack $ 1 + (computeStackLimit prog),
-                                   limitLocals $ 1 + locals,
-                                   text,
-                                   buildMainEnd] where
-  (text, locals) = buildMainContentIR prog val0
+-- buildMain :: Program -> T.Text
+-- buildMain
 
 buildIR :: Program -> T.Text
-buildIR prog = buildText [buildProlog "PrzykladowaKlasa",
-                                  buildConstructor,
-                                  buildMain prog]
+buildIR prog = buildText [T.pack prolog,
+                         T.pack main_begin,
+                         T.pack main_end,
+                         T.pack epilog]
 
 
 
