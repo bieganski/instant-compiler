@@ -23,18 +23,20 @@ myLLexer = myLexer
 type Verbosity = Int
 
 -- TODO source filename
-prolog = ["target datalayout = \"e-m:e-i64:64-f80:128-n8:16:32:64-S128",
-          "target triple = \"x86_64-pc-linux-gnu",
-          "@.str = private unnamed_addr constant [4 x i8] c\"%d\0A\00\", align 1"]
+prolog = ["source_filename = \"test.c\"",
+          "target datalayout = \"e-m:e-i64:64-f80:128-n8:16:32:64-S128\"",
+          "target triple = \"x86_64-pc-linux-gnu\"\n",
+          "@.str = private unnamed_addr constant [4 x i8] c\"%d\\0A\\00\", align 1\n"]
          
 main_begin = ["define i32 @main() #0 {"]
-main_end = ["}"]
+main_end = ["ret i32 0", "}"]
 
 printf_call = "call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %d)"
 
 epilog = ["attributes #0 = { noinline nounwind optnone uwtable \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-jump-tables\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+fxsr,+mmx,+sse,+sse2,+x87\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }",
+          "attributes #1 = { \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+fxsr,+mmx,+sse,+sse2,+x87\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }",
           "!llvm.module.flags = !{!0}",
-          "!llvm.ident = !{!1}",
+          "!llvm.ident = !{!1}\n",
           "!0 = !{i32 1, !\"wchar_size\", i32 4}",
           "!1 = !{!\"clang version 6.0.0-1ubuntu2 (tags/RELEASE_600/final)\"}"]
 
@@ -71,9 +73,9 @@ getVariableNum x m = fst (m Map.! x)
 
 
 -- TODO o to
-modifyAssignVariable :: String -> (Id, SState) -> SState
+modifyAssignVariable :: String -> (Id, SState) -> (Id, SState)
 modifyAssignVariable x (num, m) = case Map.lookup x m of
-  Nothing -> Map.insert m x (num + 1, Map.insert x (num, 0) m)
+  Nothing -> (num + 1, Map.insert x (num, 0) m)
   Just _ -> (num, m)
 
 
@@ -92,8 +94,8 @@ computeProgramIR (Prog stmts) = do
   return $ buildText ts
 
 
-buildMainContentIR :: Program -> SState -> T.Text
-buildMainContentIR p v = evalState (computeProgramIR p) v
+buildMainContentIR :: Program -> (Id, SState) -> T.Text
+buildMainContentIR p s = evalState (computeProgramIR p) s
 
 -- limits for locals and stack increased by 1 because of 'getstatic' usage
 -- and string argument in main function
@@ -101,10 +103,10 @@ buildMainContentIR p v = evalState (computeProgramIR p) v
 -- buildMain
 
 buildIR :: Program -> T.Text
-buildIR prog = buildText [T.pack prolog,
-                         T.pack main_begin,
-                         T.pack main_end,
-                         T.pack epilog]
+buildIR prog = buildText [buildLines prolog,
+                         buildLines main_begin,
+                         buildLines main_end,
+                         buildLines epilog]
 
 
 
