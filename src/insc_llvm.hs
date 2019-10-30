@@ -31,7 +31,7 @@ prolog = ["source_filename = \"test.c\"",
 main_begin = ["define i32 @main() #0 {"]
 main_end = ["ret i32 0", "}"]
 
-printf_call = "call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %d)"
+printf_call = "call i32 (i8*, ...) @printf(i8* getelementptr inbounds ([4 x i8], [4 x i8]* @.str, i32 0, i32 0), i32 %%%d)"
 
 epilog = ["attributes #0 = { noinline nounwind optnone uwtable \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-jump-tables\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+fxsr,+mmx,+sse,+sse2,+x87\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }",
           "attributes #1 = { \"correctly-rounded-divide-sqrt-fp-math\"=\"false\" \"disable-tail-calls\"=\"false\" \"less-precise-fpmad\"=\"false\" \"no-frame-pointer-elim\"=\"true\" \"no-frame-pointer-elim-non-leaf\" \"no-infs-fp-math\"=\"false\" \"no-nans-fp-math\"=\"false\" \"no-signed-zeros-fp-math\"=\"false\" \"no-trapping-math\"=\"false\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+fxsr,+mmx,+sse,+sse2,+x87\" \"unsafe-fp-math\"=\"false\" \"use-soft-float\"=\"false\" }",
@@ -60,32 +60,87 @@ buildLines xs = T.intercalate (T.pack "\n") (map T.pack xs)
 -- num free variable to be used (numering from 1)
 -- and map from variable name to its number and value
 type Id = Integer
-type Val = Integer
-type SState = Map.Map String (Id, Val)
+type SState = Map.Map String Id
 type SStateM = State (Id, SState)
 
 s0 :: (Id, SState)
 s0 = (1, Map.empty)
 
--- it must exist
-getVariableNum :: String -> SState -> Integer 
-getVariableNum x m = fst (m Map.! x)
+evalBinOp :: Exp -> Exp -> SStateM (T.Text, (Id, Id))
+evalBinOp e1 e2 = do
+  (t1, id1) <- evalExp e1
+  (t2, id2) <- evalExp e2
+  return (buildText [t1, t2], (id1, id2))
+
+newId :: SStateM Id
+newId = do
+  (id, _) <- get
+  modify ((+1) . fst)
+  return id
+
+getBinArgExpPrintf :: Exp -> String
+getBinArgExpPrintf e = case e of
+  ExpAdd _ _ -> "%%%d = add nsw %%%d, %%%d"
+  ExpMul _ _ -> "%%%d = mul nsw %%%d, %%%d"
+  ExpSub _ _ -> "%%%d = sub nsw %%%d, %%%d"
+  ExpDiv _ _ -> "%%%d = div nsw %%%d, %%%d"
+  otherwise -> error "internal - getBinArgExpPrintf"
 
 
--- TODO o to
+-- besides IR text code it returns id of virtual register,
+-- that holds evaluation result
+evalExp :: Exp -> SStateM (T.Text, Id)
+evalExp e = case e of
+  ExpVar x -> do
+    resId <- newId
+    (_, s) <- get
+    let xMemReg = getVariableNum x s
+    return (T.pack $ printf "%%%d = load i32, i32* %%%d, align 4" newId xMemReg,
+            newId)
+  ExpLit n -> do
+    tmpMemId <- newId
+    valRegId <- newId
+    let resLines = [printf "%%%d = alloca i32, align4" tmpMemId,
+                    printf "store i32 %d, i32* %%%d, align 4" n tmpMemId,
+                    printf "%%%d = load i32, i32* %%%d, align 4" valRegId tmpMemId]
+    return (buildLines resLines, newId)
+  ExpAdd e1 e2 -> do
+    (t, (id1, id2)) <- evalBinOp e1 e2
+    resId <- newId
+    return (resText, resId) where
+      resText = buildText [t, T.pack $ printf (getBinArgExpPrintf e) resId, id1, id2]
+
+
 modifyAssignVariable :: String -> (Id, SState) -> (Id, SState)
 modifyAssignVariable x (num, m) = case Map.lookup x m of
-  Nothing -> (num + 1, Map.insert x (num, 0) m)
-  Just _ -> (num, m)
+    Nothing -> (num + 1, Map.insert x num m)
+    Just _ -> (num, m)
 
+variableUsed :: String -> SStateM Bool
+variableUsed x = do
+  (_, m) <- get
+  case Map.lookup x m of
+    Nothing -> return False
+    Just _ -> return True
 
 computeStmtIR :: Stmt -> SStateM T.Text
 computeStmtIR stmt = do
   case stmt of
     SAss (Ident x) e -> do
-      return $ buildText [] 
+      used <- variableUsed x
+      (t, id) <- evalExp e
+      modify (modifyAssignVariable x)
+      (_, m) <- get
+      let xMemAddr = m Map.! x
+      let tStore = printf "store i32 %%%d, i32* %%%d, align 4" id xMemAddr
+      let resTextL = [t, tStore]
+      case used of
+        True -> return $ buildText resTextL
+        False -> return $ buildText (r:resTextL) where
+          r = T.pack $ printf "%%%d = alloca i32, align 4" xMemAddr
     SExp e -> do
-      return $ buildPrintable 2137
+      (t, id) <- evalExp e
+      return $ buildText [t, buildPrintable id]
 
 
 computeProgramIR :: Program -> SStateM T.Text
