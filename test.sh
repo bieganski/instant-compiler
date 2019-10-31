@@ -2,8 +2,6 @@
 
 # TESTS=`ls -1 examples/ | grep ins | cut -d \. -f 1`
 TESTS=test01
-LLVM_DIR=llvm_out
-JVM_DIR=jvm_out
 
 llvm() {
 echo "TESTING LLVM..."
@@ -21,25 +19,21 @@ echo "TESTING LLVM DONE"
 }
 
 jvm() {
-echo "TESTING JVM..."
-
-for t in $TESTS; do
-    `stack run insc_jvm examples/$t.ins > ${JVM_DIR}/$t.j`
-    `java -jar lib/jasmin.jar ${JVM_DIR}/$t.j -d ${JVM_DIR}/`
-    `java ${JVM_DIR}/$t.class > ${JVM_DIR}/$t.out`
-done;
-
-compare_outs ${JVM_DIR}
-
-echo "TESTING JVM DONE"
-
+    make
+    echo "TESTING JVM..."
+    for t in $TESTS; do
+        ./insc_jvm examples/$t.ins
+        `java examples.$t > $t.myout`
+    done;
+    compare_outs examples
+    echo "TESTING JVM DONE"
 }
 
 
 compare_outs() {
     DIR=$1
     for t in $TESTS; do
-        if cmp -s ${DIR}/$t.out examples/$t.output; then
+        if cmp -s ${DIR}/$t.myout examples/$t.output; then
             echo "$t passed."
         else
             echo "$t NOT passsed!"
@@ -48,9 +42,7 @@ compare_outs() {
 }
 
 
-mkdir -p ${LLVM_DIR}
-mkdir -p ${JVM_DIR}
-
 for arg in $@; do
     $arg
 done;
+
