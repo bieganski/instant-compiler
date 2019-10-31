@@ -3,10 +3,10 @@ version: '1.0'
 author: Mateusz Biegański
 
 executables:
-  jvm:
+  insc_jvm:
     main:          insc_jvm.hs
     source-dirs:   src
-  llvm:
+  insc_llvm:
     main:          insc_llvm.hs
     source-dirs:   src
 
@@ -16,3 +16,5 @@ dependencies:
   - array
   - containers
   - mtl
+  - filepath
+  - process

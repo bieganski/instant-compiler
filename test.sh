@@ -9,7 +9,7 @@ llvm() {
 echo "TESTING LLVM..."
 
 for t in $TESTS; do
-    `stack run llvm examples/$t.ins > ${LLVM_DIR}/$t.ll`
+    `stack run insc_llvm examples/$t.ins > ${LLVM_DIR}/$t.ll`
     `llvm-as ${LLVM_DIR}/$t.ll > ${LLVM_DIR}/$t.bc`
     `lli ${LLVM_DIR}/$t.ll > ${LLVM_DIR}/$t.out`
 done;
@@ -24,7 +24,7 @@ jvm() {
 echo "TESTING JVM..."
 
 for t in $TESTS; do
-    `stack run jvm examples/$t.ins > ${JVM_DIR}/$t.j`
+    `stack run insc_jvm examples/$t.ins > ${JVM_DIR}/$t.j`
     `java -jar lib/jasmin.jar ${JVM_DIR}/$t.j -d ${JVM_DIR}/`
     `java ${JVM_DIR}/$t.class > ${JVM_DIR}/$t.out`
 done;

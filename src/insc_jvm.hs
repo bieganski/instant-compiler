@@ -13,9 +13,10 @@ import Control.Monad.State
 import Control.Monad.Identity
 import Control.Monad(forM)
 import qualified Data.Map as Map
+import System.FilePath
+import System.Process 
 
-import Debug.Trace
-
+-- bcnf stuff
 type ParseFun a = [Token] -> Err a
 
 myLLexer = myLexer
@@ -185,24 +186,29 @@ buildMain prog = buildText [buildMainBegin,
                                    buildMainEnd] where
   (text, locals) = buildMainContentIR prog val0
 
-buildIR :: Program -> T.Text
-buildIR prog = buildText [buildProlog "PrzykladowaKlasa",
+-- filename without extension as arg, to generate filename.class
+buildIR :: Program -> FilePath -> T.Text
+buildIR prog fname = buildText [buildProlog fname,
                                   buildConstructor,
                                   buildMain prog]
 
 
 
 runFile :: Verbosity -> FilePath -> IO ()
-runFile v f = readFile f >>= run v
+runFile v f = readFile f >>= run v f
 
-run :: Verbosity -> String -> IO ()
-run v s = do
+run :: Verbosity -> FilePath -> String -> IO ()
+run v fp s = do
   let ts = pProgram $ myLLexer s
   case ts of
            Bad s    -> putStrLn "\nParse failed...\n"
            Ok  tree -> do
-             let ir = T.unpack $ buildIR tree
-             putStrLn ir
+             let ir = T.unpack $ buildIR tree (takeBaseName fp)
+             let outJ = dropExtension fp <.> "j"
+             writeFile outJ ir
+             readProcess "java" ["-jar", "lib/jasmin.jar", "-d",
+                                 takeDirectory outJ, outJ] ""
+             return ()
 
 main :: IO ()
 main = do

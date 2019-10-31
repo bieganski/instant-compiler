@@ -14,8 +14,8 @@ import Control.Monad.State
 import Control.Monad.Identity
 import Control.Monad(forM)
 import qualified Data.Map as Map
-
-import Debug.Trace
+import System.FilePath
+import System.Process
 
 -- bnfc stuff
 type ParseFun a = [Token] -> Err a
@@ -176,16 +176,19 @@ buildIR prog = buildText [buildLines prolog,
 
 
 runFile :: Verbosity -> FilePath -> IO ()
-runFile v f = readFile f >>= run v
+runFile v f = readFile f >>= run v f
 
-run :: Verbosity -> String -> IO ()
-run v s = do
+run :: Verbosity -> FilePath -> String -> IO ()
+run v fp s = do
   let ts = pProgram $ myLLexer s
   case ts of
            Bad s    -> putStrLn "\nParse failed...\n"
            Ok  tree -> do
              let ir = T.unpack $ buildIR tree
-             putStrLn ir
+             let outLL = dropExtension fp <.> "ll"
+             writeFile outLL ir
+             readProcess "llvm-as" [outLL] ""
+             return ()
 
 main :: IO ()
 main = do
