@@ -2,6 +2,7 @@
 all:	ParInstant.hs
 	alex -g LexInstant.x
 	ghc --make TestInstant.hs -o TestInstant
+	rm -rf TestInstant.hs
 
 jvm:
 	ghc  --make insc_jvm.hs -o insc_jvm
