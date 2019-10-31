@@ -8,7 +8,7 @@ llvm() {
         ./insc_llvm examples/$t.ins
         lli examples/$t.bc > examples/$t.myout
     done;
-    compare_outs $LLVM_DIR
+    compare_outs examples
     echo "TESTING LLVM DONE"
 }
 
