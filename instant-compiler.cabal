@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2e8afa81f02a28856e77a6d20c9b9d37119196562c398d41c612995045a3d34a
+-- hash: c7f0ccf9562f0362b42f84203d2f6ae7c946d56a00b9e8e932d4df68a7b3e037
 
 name:           instant-compiler
 version:        1.0
@@ -23,7 +23,6 @@ executable insc_jvm
       ParInstant
       PrintInstant
       SkelInstant
-      TestInstant
       Paths_instant_compiler
   hs-source-dirs:
       src
@@ -48,7 +47,6 @@ executable insc_llvm
       ParInstant
       PrintInstant
       SkelInstant
-      TestInstant
       Paths_instant_compiler
   hs-source-dirs:
       src
