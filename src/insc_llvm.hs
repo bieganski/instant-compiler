@@ -79,10 +79,10 @@ newId = do
 
 getBinArgExpPrintf :: Exp -> String
 getBinArgExpPrintf e = case e of
-  ExpAdd _ _ -> "%%%d = add nsw %%%d, %%%d"
-  ExpMul _ _ -> "%%%d = mul nsw %%%d, %%%d"
-  ExpSub _ _ -> "%%%d = sub nsw %%%d, %%%d"
-  ExpDiv _ _ -> "%%%d = div nsw %%%d, %%%d"
+  ExpAdd _ _ -> "%%%d = add nsw i32 %%%d, %%%d"
+  ExpMul _ _ -> "%%%d = mul nsw i32 %%%d, %%%d"
+  ExpSub _ _ -> "%%%d = sub nsw i32 %%%d, %%%d"
+  ExpDiv _ _ -> "%%%d = sdiv i32 %%%d, %%%d"
   otherwise -> error "internal - getBinArgExpPrintf"
 
 
@@ -137,10 +137,10 @@ computeStmtIR stmt = do
   case stmt of
     SAss (Ident x) e -> do
       used <- variableUsed x
-      (t, id) <- evalExp e
       modify (modifyAssignVariable x)
       (_, m) <- get
       let xMemAddr = m Map.! x
+      (t, id) <- evalExp e
       let tStore = printf "store i32 %%%d, i32* %%%d, align 4" id xMemAddr
       let resTextL = [t, T.pack tStore]
       case used of
@@ -149,6 +149,7 @@ computeStmtIR stmt = do
           r = T.pack $ printf "%%%d = alloca i32, align 4" xMemAddr
     SExp e -> do
       (t, id) <- evalExp e
+      _ <- newId -- unused id for printf call result
       return $ buildText [t, buildPrintable id]
 
 
