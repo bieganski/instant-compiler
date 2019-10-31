@@ -1,3 +1,5 @@
 *.lock
 *#*#*
 *.stack-work*
+insc_jvm
+insc_llvm
