@@ -1,29 +1,22 @@
 #!/bin/bash
 
-# TESTS=`ls -1 examples/ | grep ins | cut -d \. -f 1`
-TESTS=test01
+TESTS=`ls -1 examples/ | grep ins | cut -d \. -f 1`
 
 llvm() {
-echo "TESTING LLVM..."
-
-for t in $TESTS; do
-    `stack run insc_llvm examples/$t.ins > ${LLVM_DIR}/$t.ll`
-    `llvm-as ${LLVM_DIR}/$t.ll > ${LLVM_DIR}/$t.bc`
-    `lli ${LLVM_DIR}/$t.ll > ${LLVM_DIR}/$t.out`
-done;
-
-compare_outs $LLVM_DIR
-
-echo "TESTING LLVM DONE"
-
+    echo "TESTING LLVM..."
+    for t in $TESTS; do
+        ./insc_llvm examples/$t.ins
+        lli examples/$t.bc > examples/$t.myout
+    done;
+    compare_outs $LLVM_DIR
+    echo "TESTING LLVM DONE"
 }
 
 jvm() {
-    make
     echo "TESTING JVM..."
     for t in $TESTS; do
         ./insc_jvm examples/$t.ins
-        `java examples.$t > $t.myout`
+        `java -cp examples $t > examples/$t.myout`
     done;
     compare_outs examples
     echo "TESTING JVM DONE"
@@ -41,7 +34,7 @@ compare_outs() {
     done;
 }
 
-
+make
 for arg in $@; do
     $arg
 done;

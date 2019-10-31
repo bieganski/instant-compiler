@@ -127,11 +127,12 @@ computeBinaryOpIR :: Exp -> Exp -> Map.Map Exp Integer -> T.Text -> SState T.Tex
 computeBinaryOpIR e1 e2 m opBytecode = do
   t1 <- computeExpIR e1 m
   t2 <- computeExpIR e2 m
-  if (m Map.! e1) > (m Map.! e2)
+  if (m Map.! e1) >= (m Map.! e2)
     then return $ buildText [t1, t2, opBytecode]
     else return $ buildText [t2, t1, opBytecode]
 
-    
+
+-- second argument is stackMap, which maps exp -> stack depth to be used
 computeExpIR :: Exp -> Map.Map Exp Integer -> SState T.Text
 computeExpIR e m = do
   case e of
