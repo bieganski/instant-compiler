@@ -139,16 +139,19 @@ computeExpIR e m = do
     ExpSub e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "isub")
     ExpMul e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "imul")
     ExpDiv e1 e2 -> computeBinaryOpIR e1 e2 m (T.pack "idiv")
-    ExpLit n -> return $ T.pack $ (push n) ++ (show n) where
+    ExpLit n -> return $ T.pack $ (push n) where
       push n
-        | n <= 255 = "bipush "
-        | n <= 65535 = "sipush "
-        | otherwise = "ldc "
+        | n == -1 = "iconst_m1"
+        | n <= 5 && n >= 0 = "iconst_" ++ (show n)
+        | n <= 2^7-1 && n >= -2^7 = "bipush " ++ (show n)
+        | n <= 2^15-1 && n >= -2^15 = "sipush " ++ (show n)
+        | otherwise = "ldc " ++ (show n)
     ExpVar (Ident x) -> do
       m <- gets snd
       case Map.lookup x m of
         Nothing -> error "Usage of not defined variable"
-        Just num -> return $ T.pack $ "iload " ++ (show num)
+        Just num -> return $ T.pack $ iload ++ (show num) where
+          iload = if num <= 3 then "iload_" else "iload "
 
 computeStmtIR :: Stmt -> SState T.Text
 computeStmtIR stmt = do
@@ -158,8 +161,10 @@ computeStmtIR stmt = do
       let m = computeStackMap e
       t1 <- computeExpIR e m
       val <- get
-      let xnum = getVariableNum x val 
-      return $ buildText [t1, T.pack $ "istore " ++ (show xnum)] 
+      let xnum = getVariableNum x val
+      let istore = if xnum <= 3 then "istore_" else "istore "
+      return $ buildText [t1, T.pack $ istore ++ (show xnum)]
+
     SExp e -> do
       let m = computeStackMap e
       t1 <- computeExpIR e m
