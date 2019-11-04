@@ -3,6 +3,9 @@
 rozwiązanie w Haskellu, korzysta z raczej standardowych funkcji języka,
 oba programy korzystają z monady State do pamiętania potrzebnych informacji.
 
+korzystam z bibliotek Data.Text (gwoli optymalizacji, + printf), 
+System.FilePath (wygodna manipulacja ścieżkami) i System.Process do poleceń basha (jasmin).
+
 ## JVM
 
 * optymalizacja: wyrażenia są obliczane w kolejności optymalnej dla
